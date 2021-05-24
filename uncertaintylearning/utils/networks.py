@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 import torchvision.models as models
-import uncertaintylearning.utils.resnet as resnet
+from ..utils import resnet as resnet
 from collections import OrderedDict
 
 

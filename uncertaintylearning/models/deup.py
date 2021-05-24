@@ -1,7 +1,7 @@
 import torch
 import logging
 import torch.nn as nn
-from uncertaintylearning.utils import softplus
+from ..utils import softplus
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.linear_model import LinearRegression
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -37,7 +37,6 @@ class DEUP(BaseModel):
         self.num_classes = num_classes
         self.reduce_loss = reduce_loss
         self.e_loss_fn = e_loss_fn
-
         if 'dataloader' in data.keys():
             self.use_dataloader = True
             self.dataloader = data['dataloader']
@@ -61,6 +60,8 @@ class DEUP(BaseModel):
         self.f_optimizer = optimizers['f_optimizer']
 
 
+        self.lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.f_optimizer,
+                             mode = 'min', factor=0.9, patience=10, min_lr = 1e-5, verbose=True)
         self.exp_pred_uncert = exp_pred_uncert
 
         assert estimator in ('nn', 'linreg', 'gp')
@@ -104,8 +105,9 @@ class DEUP(BaseModel):
             for batch_id, (xi, yi) in iterable2:
                 f_loss = self.train_with_batch(xi, yi)
                 epoch_losses.append(f_loss.item())
-                break
+                #break
             train_losses.append(np.mean(epoch_losses))
+            self.lr_schedule.step(train_losses[-1])
 
         return train_losses
 

@@ -57,10 +57,16 @@ class FeatureGenerator:
 
         with torch.no_grad():
             for x, y in loader:
+                #u_out = torch.clamp(torch.log10(
+                #    loss_fn(model(x.to(device)), torch.nn.functional.one_hot(y, num_classes).to(device, torch.float32)).sum(1)),
+                #                    min=-5).view(-1, 1)
                 u_out = torch.clamp(torch.log10(
-                    loss_fn(model(x.to(device)), torch.nn.functional.one_hot(y, num_classes).to(device, torch.float32)).sum(1)),
+                    loss_fn(model(x.to(device)), y.to(device, torch.float32)).sum(1)),
                                     min=-5).view(-1, 1)
+
                 u_in = []
+                if 'x' in self.features:
+                    u_in.append(x)
                 if 'd' in self.features:
                     density_feature = self.density_estimator.score_samples(x, device, no_preprocess=False).to(device)
                     u_in.append(density_feature)

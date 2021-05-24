@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from .base import BaseModel
 from torch.utils.data import DataLoader, TensorDataset
-from uncertaintylearning.utils import get_ensemble_uncertainty_estimate
+from ..utils import get_ensemble_uncertainty_estimate
 
 
 class Ensemble(BaseModel):

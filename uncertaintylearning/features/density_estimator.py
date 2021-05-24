@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from sklearn.neighbors import KernelDensity
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import GridSearchCV
-from uncertaintylearning.utils.maf import MAFMOG, MADEMOG
-from uncertaintylearning.utils.smooth_kde import SmoothKDE
+from ..utils.maf import MAFMOG, MADEMOG
+from ..utils.smooth_kde import SmoothKDE
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
@@ -73,6 +73,7 @@ class NNDensityEstimator(DensityEstimator):
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-4)
         self.model = self.model.to(device)
         logging.info("Training Density Estimator...")
+        train_loss = []
         for epoch in tqdm(range(self.epochs)):
             epoch_loss = 0
             for i, data in enumerate(dataloader):
@@ -90,9 +91,12 @@ class NNDensityEstimator(DensityEstimator):
                 self.optimizer.step()
                 if i % 25 == 0:
                     print("Neural Density estimation - Iteration: {}, Loss: {}, saving model ...".format(i, epoch_loss / (i + 1)))
+            train_loss.append(epoch_loss)
+
         if path is not None:
             torch.save(self.model.state_dict(), path)
         # self.postprocessor.fit(self.score_samples(training_points, no_preprocess=True))
+        return train_loss
 
     def score_samples(self, test_points, device=torch.device("cpu"), no_preprocess=False):
         try:
@@ -105,12 +109,14 @@ class NNDensityEstimator(DensityEstimator):
         for data in dataloader:
             x = data[0].view(data[0].shape[0], -1).to(device)
             logprobs.append(self.model.log_prob(x).detach().cpu())
-        logprobs = torch.cat(logprobs, dim=0).clamp_min(-5).detach()
+        logprobs = torch.cat(logprobs, dim=0).clamp_min(-100).detach()
+        #logprobs = torch.cat(logprobs, dim=0).detach()
         if no_preprocess:
             values = logprobs.numpy().ravel()
         else:
             values = self.postprocessor.transform(logprobs.unsqueeze(-1)).squeeze()
         values = torch.FloatTensor(values).unsqueeze(-1)
+        print(values.shape)
         assert values.ndim == 2 and values.size(0) == len(test_points)
         return values
 
@@ -138,8 +144,8 @@ class MAFMOGDensityEstimator(NNDensityEstimator):
                             batch_norm=self.batch_norm)
         if init_only:
             return
-        super().fit(training_points, device, save_path)
-
+        hist=super().fit(training_points, device, save_path)
+        return hist
 
 class MADEMOGDensityEstimator(NNDensityEstimator):
     """
